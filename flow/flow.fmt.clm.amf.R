@@ -32,7 +32,7 @@ if(!require(devtools)){install.packages("devtools")}
 devtools::install_github("chuhousen/amerifluxr")
 
 #Call the R HDF5 Library
-packReq <- c("corrplot", "neonUtilities", "dplyr", "readr",'lubridate', "ggplot2","ggpubr","Hmisc","tidyverse","ggpmisc","jsonlite","factoextra", "amerifluxr")
+packReq <- c("corrplot", "neonUtilities", "dplyr", "readr",'lubridate', "ggplot2","ggpubr","Hmisc","tidyverse","ggpmisc","jsonlite","factoextra")
 
 #Install and load all required packages
 lapply(packReq, function(x) {
@@ -53,21 +53,24 @@ if(!dir.exists(DirExtr)) dir.create(DirExtr, recursive = TRUE)
 ver <- paste0("vAmf/",format(Sys.time(), "%Y%m%d"))
 DirOutBase <-paste0("~/eddy/data/CLM/",ver)
 
+
+
+
+#Type of data
+DataType <- "FULLSET"
+#Time aggregation
+TimeAgg <- c("HH","DD","WW","MM","YY")[5]
+#NEON site
+Site <- c("US-xAE","US-xBR","US-xCL","US-xCP","US-xDC","US-xDL","US-xDS",
+          "US-xGR","US-xHA","US-xHE","US-xJE","US-xKA","US-xKZ", "US-xMB",
+          "US-xML","US-xNG","US-xNQ","US-xRM","US-xSB","US-xSE","US-xSR",
+          "US-xST","US-xTA","US-xTR","US-xUK","US-xUN","US-xYE")[2]
+
 #Append the site to the base output directory
 if(DirOutBase == "tmp") DirOutBase <- tempdir()
 DirOut <- paste0(DirOutBase, "/", Site)
 DirOutAtm <- paste0(DirOutBase, "/", Site, "/atm")
 DirOutEval <- paste0(DirOutBase, "/", Site, "/eval")
-
-#Type of data
-DataType <- "FULLSET"
-#Time aggregation
-TimeAgg <- c("HH","DD","WW","MM","YY")[1]
-#NEON site
-Site <- c("US-xAE","US-xBR","US-xCL","US-xCP","US-xDC","US-xDL","US-xDS",
-          "US-xGR","US-xHA","US-xHE","US-xJE","US-xKA","US-xKZ", "US-xMB",
-          "US-xML","US-xNG","US-xNQ","US-xRM","US-xSB","US-xSE","US-xSR",
-          "US-xST","US-xTA","US-xTR","US-xUK","US-xUN","US-xYE")[13]
 
 NEONSiteMeta <- read.csv("/home/ddurden/eddy/code/random_scripts/EB_AGU/NEON_Field_Site_Metadata_20201204.csv")
 
