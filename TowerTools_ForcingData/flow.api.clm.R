@@ -63,8 +63,8 @@ buck = "neon-ncar"
 # Setting up environment
 Sys.setenv(
   #Set ENV variables
-"GCSPATHUPLDATM" = "NEON/atm/cdeps/v3",
-"GCSPATHUPLDEVAL" = "NEON/eval_files/v3",
+"GCSPATHUPLDATM" = "NEON/atm/cdeps/v4",
+"GCSPATHUPLDEVAL" = "NEON/eval_files/v4",
   "GCS_AUTH_FILE" = "/home/ddurden/eddy/tmp/neon_ncar_writer.json"
 )
 
