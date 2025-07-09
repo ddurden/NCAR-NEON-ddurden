@@ -87,7 +87,7 @@ tryCatch({googleCloudStorageR::gcs_auth(json_file=gcsCred)},
 ##!Workflow parameters
 ##############################################################################
 #WhOSBSich NEON site are we grabbing data from (4-letter ID)
-Site <- "YELL"
+Site <- "HARV"
 #Which type of data package (expanded or basic)
 Pack <- "basic"
 #Time averaging period
@@ -502,7 +502,7 @@ base::file.remove(base::list.files(DirDnld, full.names = TRUE, recursive = TRUE)
 
 
 #List of DP numbers by eddy4R DP names
-listDpNum <- c( "PRECTmms_MDS" = "DP1.00006.001", "rH" = "DP1.00098.001", "FLDS_MDS" = "DP1.00023.001", "Rg" = "DP1.00023.001", "Pa_MDS" = "DP1.00004.001", "TBOT" = "DP1.00003.001", "PAR" = "DP1.00024.001", "SW_DIR" = "DP1.00014.001", "WS_MDS" = "DP1.00001.001")
+listDpNum <- c( "PRECTmms_MDS" = "DP1.00006.001","rH" = "DP1.00098.001", "FLDS_MDS" = "DP1.00023.001", "Rg" = "DP1.00023.001", "Pa_MDS" = "DP1.00004.001", "TBOT" = "DP1.00003.001", "PAR" = "DP1.00024.001", "SW_DIR" = "DP1.00014.001", "WS_MDS" = "DP1.00001.001")
 
 #names for individual variables of interest
 varDp <- c("PRECTmms_MDS" = "SECPRE_30min", "rH" = "RH_30min", "FLDS_MDS" = "SLRNR_30min", "Rg" = "SLRNR_30min", "Pa_MDS" = "BP_30min", "TBOT" = "TAAT_30min", "PAR" = "PARPAR_30min", "SW_DIR" = "SRDDP_30min", "WS_MDS" = "twoDWSD_30min")  #was twoDWSD_30min #Currently using the relative humidity from the soil array, tower top was not reporting data at HARV during this time
@@ -528,6 +528,34 @@ dataMet <- lapply(listDpNum, function(x){
                                           check.size = FALSE), 
       silent = TRUE)
   })
+
+#Get site codes for sites with primary precip data
+sitePrecip <- neonUtilities::getProductInfo("DP1.00044.001")$siteCodes$siteCode
+
+#Test if site has primary precip
+if(Site %in% sitePrecip){
+
+
+P <- 
+  try(expr = neonUtilities::loadByProduct(site = Site, dpID = "DP1.00044.001", 
+                                          startdate = as.character(dateBgn), 
+                                          enddate = as.character(dateEnd), 
+                                          package = Pack,  
+                                          include.provisional = TRUE, 
+                                          check.size = FALSE), 
+      silent = TRUE)
+
+P$WEIPRE_60min$precipBulk
+
+split_data <- P$WEIPRE_60min %>% 
+  dplyr::select(startDateTime, precipBulk, finalQF) %>%
+  # For each 1-hour row, create two new rows
+  dplyr::mutate(DateTime_split = list(c(startDateTime, startDateTime + lubridate::minutes(30))),
+         Value_split = list(c(precipBulk/ 2, precipBulk/ 2)), Value_split = list(c(finalQF/ 2, finalQF/ 2))) %>% # Divide value evenly
+  tidyr::unnest(c(DateTime_split, Value_split)) %>%
+  dplyr::select(DateTime = DateTime_split, Value = Value_split)
+
+}#End primary precip if statement 
 
 #Check if primary precipitation exists at the site, if not change to secondary precip
 varDp["PRECTmms_MDS"] <- ifelse(test = any(grepl(pattern = varDp["PRECTmms_MDS"], x = names(dataMet[["PRECTmms_MDS"]]))), "SECPRE_30min", "PRIPRE_30min")
