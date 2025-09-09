@@ -532,6 +532,7 @@ dataMet <- lapply(listDpNum, function(x){
 #Get site codes for sites with primary precip data
 sitePrecip <- neonUtilities::getProductInfo("DP1.00044.001")$siteCodes$siteCode
 
+
 #Test if site has primary precip
 if(Site %in% sitePrecip){
 
@@ -547,7 +548,7 @@ P <-
 
 #P$WEIPRE_60min$precipBulk
 
- subP <- P$WEIPRE_60min %>% 
+ tmpP <- P$WEIPRE_60min %>% 
   dplyr::select(startDateTime, precipBulk, finalQF) %>%
   # Duplicate each row and add a half-hour sequence
   uncount(2) %>%
@@ -564,7 +565,11 @@ P <-
   ) %>%
   select(startDateTime = startDateTime_split, priPrecipBulk = precipBulk_split, priPrecipFinalQF = finalQF)
 
-dataMet$PRECTmms_MDS$PRIPRE_30min <- as.data.frame(subP)
+#Move output to dataMet list
+dataMet$PRECTmms_MDS$PRIPRE_30min <- as.data.frame(tmpP)
+
+#Remove tmpP
+rm(tmpP)
 
 #Check if primary precipitation exists at the site, if not change to secondary precip
 varDp["PRECTmms_MDS"] <- "PRIPRE_30min"
@@ -577,7 +582,17 @@ varDp["PRECTmms_MDS"] <- "PRIPRE_30min"
 subVar["PRECTmms_MDS"] <- ifelse(test = varDp["PRECTmms_MDS"] == "SECPRE_30min", "secPrecipBulk", "priPrecipBulk")
 subVarQf["PRECTmms_MDS"] <- ifelse(test = varDp["PRECTmms_MDS"] == "SECPRE_30min", "secPrecipFinalQF", "priPrecipFinalQF")
 
-
+#Check if secondary precip available and create finalQF 
+if(any(grepl(pattern = "SECPRE_30min", x = names(dataMet[["PRECTmms_MDS"]])))){
+  dataMet$PRECTmms_MDS$SECPRE_30min <- dataMet$PRECTmms_MDS$SECPRE_30min %>%
+    mutate(
+      secPrecipFinalQF = case_when(
+        secPrecipRangeQF == 1 | secPrecipSciRvwQF == 1 ~ 1, # If col_A or col_B is 1, set new_column to 1
+        is.na(secPrecipRangeQF) & is.na(secPrecipSciRvwQF) ~ NA_real_, # If both are NA, set new_column to NA
+        TRUE ~ 0 # Otherwise (neither is 1, and at least one is not NA), set new_column to 0
+      )
+    )
+}
 
 #Grab the actual data tables
 dataMetSub <- lapply(seq_along(varDp), function(x) {
@@ -606,13 +621,30 @@ dataMetSub$PAR <- dataMetSub$PAR[dataMetSub$PAR$verticalPosition == IdVer,]
 dataMetSub$WS_MDS_002 <- dataMetSub$WS_MDS[dataMetSub$WS_MDS$verticalPosition == sprintf("%03d",as.integer(IdVer) - 20),]
 dataMetSub$WS_MDS <- dataMetSub$WS_MDS[dataMetSub$WS_MDS$verticalPosition == sprintf("%03d",as.integer(IdVer) - 10),]
 
+#############################################################################################################################################
+#Dealing with precip redundant variables
+#############################################################################################################################################
+
 #logical statement looking for throughfall precip data
 if(any(grepl(pattern = "THRPRE_30min", x = names(dataMet[["PRECTmms_MDS"]])))){
   for(idx in unique(dataMet$PRECTmms_MDS$THRPRE_30min$horizontalPosition)){
     tmpVar <- paste0("PRECTmms_MDS_",idx)
-      dataMetSub[[tmpVar]] <- dataMet$PRECTmms_MDS$THRPRE_30min[dataMet$PRECTmms_MDS$THRPRE_30min$horizontalPosition == idx,]
+      tmpDf <- dataMet$PRECTmms_MDS$THRPRE_30min[dataMet$PRECTmms_MDS$THRPRE_30min$horizontalPosition == idx,]
+      
+      dataMetSub[[tmpVar]] <- tmpDf %>%
+        mutate(
+          TFPrecipFinalQF = case_when(
+            TFPrecipRangeQF == 1 | TFPrecipSciRvwQF == 1 ~ 1, # If col_A or col_B is 1, set new_column to 1
+            is.na(TFPrecipRangeQF) & is.na(TFPrecipSciRvwQF) ~ NA_real_, # If both are NA, set new_column to NA
+            TRUE ~ 0 # Otherwise (neither is 1, and at least one is not NA), set new_column to 0
+          )
+        )
+     
+      
   }#End for loop for Throughfall
 
+  #Remove tmpDf
+  rm(tmpDf) 
 }#End of logical statement looking for throughfall precip data
 
 
@@ -625,6 +657,8 @@ tmpVar <-  paste0("PRECTmms_MDS_", stringr::str_pad(tmpVarIdx, width = 3, pad = 
 #Grab the data
 dataMetSub[[tmpVar]] <- dataMet$PRECTmms_MDS$SECPRE_30min
 }
+
+#############################################################################################################################################
 
 
 #time regularization of met data
@@ -693,7 +727,7 @@ dataGf$PRECTmms_MDS <- as.data.frame(sapply(tmpList, function(x){
 qfGf$PRECTmms_MDS <- as.data.frame(sapply(tmpList, function(x){
   #x <- tmpList[[1]] #for testing
   #print(names(x))
-  x[,grep("FinalQF|RangeQF", names(x))]
+  x[,grep("FinalQF", names(x))]
 }))
 
 #Grab temp data streams
