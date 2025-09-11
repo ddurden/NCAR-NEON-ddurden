@@ -87,7 +87,7 @@ tryCatch({googleCloudStorageR::gcs_auth(json_file=gcsCred)},
 ##!Workflow parameters
 ##############################################################################
 #WhOSBSich NEON site are we grabbing data from (4-letter ID)
-Site <- "HARV"
+Site <- "TOOL"
 #Which type of data package (expanded or basic)
 Pack <- "basic"
 #Time averaging period
@@ -96,7 +96,7 @@ TimeAgr <- 30
 dateBgn <- "2018-01-01"
 
 #End date for date grabbing
-dateEnd <- "2024-06-30"
+dateEnd <- "2024-12-31"
 
 # Run using less memory (but more time);
 # if lowmem == TRUE, how many months of data should stackEddy handle at a time?
@@ -519,8 +519,12 @@ subVarQf <- c("PRECTmms_MDS" = "secPrecipFinalQF", "rH" = "RHFinalQF", "FLDS_MDS
 
 ##Grab data for data products using Noble package
 dataMet <- lapply(listDpNum, function(x){
-  #x <- listDpNum[9]
-  try(expr = neonUtilities::loadByProduct(site = Site, dpID = x, 
+  #x <- listDpNum[2]
+  #If statement to grab secondary precip data at TOOK for the TOOL site
+  tmpSite <- ifelse(Site == "TOOL" & x == "DP1.00006.001", "TOOK", Site)
+  
+  
+  try(expr = neonUtilities::loadByProduct(site = tmpSite, dpID = x, 
                                           startdate = as.character(dateBgn - 1), 
                                           enddate = as.character(dateEnd), 
                                           package = Pack, timeIndex = TimeAgr, 
@@ -528,6 +532,8 @@ dataMet <- lapply(listDpNum, function(x){
                                           check.size = FALSE), 
       silent = TRUE)
   })
+
+
 
 #Get site codes for sites with primary precip data
 sitePrecip <- neonUtilities::getProductInfo("DP1.00044.001")$siteCodes$siteCode
@@ -567,6 +573,7 @@ P <-
 
 #Move output to dataMet list
 dataMet$PRECTmms_MDS$PRIPRE_30min <- as.data.frame(tmpP)
+
 
 #Remove tmpP
 rm(tmpP)
@@ -652,6 +659,10 @@ if(any(grepl(pattern = "THRPRE_30min", x = names(dataMet[["PRECTmms_MDS"]])))){
 if(any(grepl(pattern = "SECPRE_30min", x = names(dataMet[["PRECTmms_MDS"]]))) & varDp["PRECTmms_MDS"] == "PRIPRE_30min"){
 #Generate idx based on if Throughfall was also available
 tmpVarIdx <- max(as.numeric(stringr::str_extract(string = grep("PRECTmms_MDS", names(dataMetSub), value = TRUE), "[0-9][0-9][0-9]")), na.rm = TRUE) + 1
+
+#Check if no throughfall, then idx becomes 001
+tmpVarIdx <- ifelse(tmpVarIdx == -Inf, "002", tmpVarIdx)
+
 #Generate variable name for gap-filling
 tmpVar <-  paste0("PRECTmms_MDS_", stringr::str_pad(tmpVarIdx, width = 3, pad = "0", side = "left"))
 #Grab the data
